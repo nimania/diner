@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>داینر | هزینه و رسپی</title><meta name="description" content="ثبت مواد اولیه و محاسبه هزینه رسپی کافه و رستوران">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230e6565'/%3E%3Ctext x='8' y='24' fill='white' font-size='25'%3ED%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body><header><a class="brand" href="/">داینر<span>DINER</span></a><span class="chip">دفتر هزینه و رسپی</span><span class="local">نسخه توسعه • ذخیره روی همین رایانه</span></header>
+<main><section class="intro"><div><p class="eyebrow">آشپزخانه، به روایت عددها</p><h1>هر پرس، چقدر می‌ماند؟</h1><p>مواد را ثبت کن، رسپی بساز و سهم مواد و بسته‌بندی را ببین.</p></div><a class="button" href="#recipe">ساخت رسپی جدید +</a></section>
+<div id="notice" role="status" aria-live="polite"></div>
+<section class="stats" aria-label="خلاصه"><article><span>مواد ثبت‌شده</span><strong id="ingredient-count">۰</strong></article><article><span>نسخه‌های رسپی</span><strong id="recipe-count">۰</strong></article><article class="accent"><span>مبنای قیمت</span><strong>منبع مشخص</strong><small>قیمت آنلاین هنوز متصل نیست</small></article></section>
+<div class="workspace"><section class="panel"><div class="section-title"><span class="step">۱</span><h2>مواد اولیه</h2></div>
+<p>قیمت هر گرم، میلی‌لیتر یا عدد را وارد کن؛ همه مبلغ‌ها تومان‌اند.</p>
+<form id="ingredient-form"><label>نام ماده<input name="name" required maxlength="200" placeholder="مثلاً پنیر پیتزا"></label>
+<div class="pair"><label>واحد<select name="unit"><option value="g">گرم</option><option value="ml">میلی‌لیتر</option><option value="piece">عدد</option></select></label>
+<label>قیمت هر واحد (تومان)<input name="price" inputmode="decimal" required placeholder="مثلاً ۴۵۰"></label></div>
+<label>منبع قیمت<input name="source" required maxlength="200" placeholder="مثلاً فاکتور پخش، شماره ۱۲۳"></label><button>ثبت ماده اولیه</button></form>
+<div id="ingredients" class="inventory"></div></section>
+<section class="panel" id="recipe"><div class="section-title"><span class="step">۲</span><h2>دستور و هزینه محصول</h2></div>
+<p>مقدارها برای کل دستور هستند؛ هزینه بر تعداد پرس تقسیم می‌شود.</p>
+<form id="recipe-form"><div class="pair"><label>نام محصول<input name="name" required maxlength="200" placeholder="مثلاً چیزهات‌داگ"></label><label>تعداد پرس خروجی<input name="servings" value="1" required inputmode="decimal"></label></div>
+<div id="lines"></div><button type="button" class="secondary" id="add-line">+ افزودن ماده</button>
+<p class="hint">مقدار قابل‌مصرف و بازده آماده‌سازی را وارد کن؛ برای مواد بدون افت، بازده ۱۰۰٪ است. سس و مخلفات را هم اضافه کن.</p>
+<div class="pair"><label>بسته‌بندی هر پرس (تومان)<input name="packaging" value="0" required inputmode="decimal"></label><label>قیمت فروش هر پرس (تومان)<input name="sale" required inputmode="decimal"></label></div>
+<button id="save-recipe">محاسبه و ذخیره نسخه رسپی</button></form></section></div>
+<section class="results"><div class="section-title"><span class="step">۳</span><h2>دفتر رسپی‌ها</h2></div><p>هر نسخه، قیمت و منبع زمان ثبت را حفظ می‌کند. مبلغ باقی‌مانده زیر، پیش از ارسال، کمیسیون و هزینه‌های ثابت است.</p><div id="recipes"></div></section>
+<footer>داده‌ای به گیت‌هاب فرستاده نمی‌شود. این نسخه برای استفاده محلی یک مجموعه است و ورود کاربری ندارد.</footer></main></body></html>

@@ -1,5 +1,6 @@
 import {env} from "cloudflare:workers";
 import {getChatGPTUser} from "@/app/chatgpt-auth";
+import {materials} from "@/lib/library";
 import {label,money,numeric,recipeCost} from "@/lib/cost";
 export const dynamic="force-dynamic";
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{"Cache-Control":"no-store"}});
@@ -33,7 +34,8 @@ export async function POST(req:Request){
  let data:any;
  if(p.kind==="ingredient"){
   if(!["g","ml","piece"].includes(p.unit))throw Error("unit");
-  data={name:label(p.name),unit:p.unit,price:money(p.price),packQuantity:numeric(p.packQuantity,0.001,1e7),source:label(p.source),date};
+  const catalogId=materials.some(m=>m.id===p.catalogId)?p.catalogId:null;
+  data={catalogId,name:label(p.name),unit:p.unit,price:money(p.price),packQuantity:numeric(p.packQuantity,0.001,1e7),source:label(p.source),date};
  }else if(p.kind==="recipe"){
   if(!Array.isArray(p.lines)||!p.lines.length||p.lines.length>60)throw Error("lines");
   const lines=[];

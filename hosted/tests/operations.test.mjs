@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 const dir=mkdtempSync(join(tmpdir(),'diner-tests-'));
 try{
 for(const name of ['library','cost','operations','demo']){const source=readFileSync(`lib/${name}.ts`,'utf8');writeFileSync(join(dir,name+'.mjs'),ts.transpile(source,{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}).replaceAll("'./cost'","'./cost.mjs'").replaceAll("'./library'","'./library.mjs'").replaceAll("'./operations'","'./operations.mjs'"));}
-const {makeBlend,planConsumption,day,saveSale}=await import(pathToFileURL(join(dir,'operations.mjs')));
+const {makeBlend,planConsumption,day,saveSale,voidSale}=await import(pathToFileURL(join(dir,'operations.mjs')));
 const beef={id:'beef',catalogId:'beef',name:'beef',unit:'g',packQuantity:1000,price:7000000};
 const lamb={id:'lamb',catalogId:'lamb',name:'lamb',unit:'g',packQuantity:1000,price:9500000};
 const mix=makeBlend('mix',[{...beef,percent:70},{...lamb,percent:30}],'mix');
@@ -36,6 +36,22 @@ assert.equal(sqlite.prepare("SELECT count(*) n FROM stock_moves").get().n,1);
 assert.equal(sqlite.prepare("SELECT remaining FROM stock_lots WHERE id='demo:owner:demo:lot:veal'").get().remaining,9685000);
 assert.equal(sqlite.prepare("SELECT remaining FROM stock_lots WHERE id='demo:owner:demo:expired-milk'").get().remaining,800000);
 await assert.rejects(()=>saveSale(realdb,'other','foreign',{recipeId:'demo:owner:demo:burger',count:1}));
+const rid='demo:owner:demo',saleId=rid+':sale:burger';
+await assert.rejects(()=>voidSale(realdb,rid,'void-unconfirmed',{saleId,reason:'test'}));
+await assert.rejects(()=>voidSale(realdb,'other','void-foreign',{saleId,reason:'test',notPrepared:'yes'}));
+const brokenDb={...realdb,async batch(ss){return realdb.batch([...ss.slice(0,2),{sql:'UPDATE missing_table SET x=1',args:[]},...ss.slice(2)])}};
+await assert.rejects(()=>voidSale(brokenDb,rid,'void-failed',{saleId,reason:'test',notPrepared:'yes'}));
+assert.deepEqual(sqlite.prepare('SELECT id,remaining FROM stock_lots ORDER BY id').all(),before);
+assert.equal(sqlite.prepare("SELECT count(*) n FROM records WHERE kind='sale_void'").get().n,0);
+await voidSale(realdb,rid,'void-one',{saleId,reason:'wrong count',notPrepared:'yes'});
+await voidSale(realdb,rid,'void-one',{saleId,reason:'wrong count',notPrepared:'yes'});
+await voidSale(realdb,rid,'void-two',{saleId,reason:'another request',notPrepared:'yes'});
+assert.equal(sqlite.prepare("SELECT remaining FROM stock_lots WHERE id='demo:owner:demo:lot:veal'").get().remaining,10000000);
+assert.equal(sqlite.prepare("SELECT count(*) n FROM records WHERE kind='sale_void'").get().n,1);
+assert.equal(JSON.parse(sqlite.prepare('SELECT data FROM records WHERE id=?').get(saleId).data).voided,true);
+await seedDemo(realdb,'owner:demo');
+assert.equal(sqlite.prepare("SELECT remaining FROM stock_lots WHERE id='demo:owner:demo:lot:veal'").get().remaining,10000000);
+console.log('PASS: void restores exact lots once, cross-tenant/confirmation guards, rollback and reseed preservation');
 console.log('PASS: full demo seed, seeded sales consume raw blend components, repeated seed preserves inventory, expired lots excluded, foreign recipe denied');
 console.log('PASS: blend percentages, weighted cost, raw meat allocation, expiry exclusion, shortage, yield, sales margin');
 }finally{rmSync(dir,{recursive:true,force:true})}

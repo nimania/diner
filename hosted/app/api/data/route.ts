@@ -1,4 +1,4 @@
-import {makeBlend,saveSale} from '@/lib/operations';
+import {makeBlend,saveSale,voidSale} from '@/lib/operations';
 import {seedDemo} from '@/lib/demo';
 import {env} from "cloudflare:workers";
 import {getChatGPTUser} from "@/app/chatgpt-auth";
@@ -49,6 +49,7 @@ export async function POST(req:Request){
   const data={version:1,name:label(p.name),description,items};
   await c.db.prepare("INSERT INTO records(id,restaurant_id,kind,data,created) VALUES(?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(id,c.restaurant.id,'public_menu',JSON.stringify(data),date).run();return json({ok:true},201);
  }
+ if(p.kind==='void_sale'){try{await voidSale(c.db,c.restaurant.id,id,p);return json({ok:true})}catch(e){return json({error:e instanceof Error?e.message:'ابطال ممکن نشد'},400)}}
  if(p.kind==='sale'){try{await saveSale(c.db,c.restaurant.id,id,p);return json({ok:true},201)}catch(e){return json({error:e instanceof Error?e.message:'ثبت فروش ممکن نشد'},400)}}
  if(p.kind==='blend'){
   try{

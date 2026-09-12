@@ -38,3 +38,23 @@ export async function saveSale(db:D1Database,restaurantId:string,id:string,p:any
  await db.batch(statements);
  if(!await db.prepare("SELECT id FROM records WHERE id=? AND restaurant_id=? AND kind='sale'").bind(id,restaurantId).first())throw Error('موجودی هم‌زمان تغییر کرد؛ دوباره تلاش کن.');
 }
+
+/** Reverse an erroneous entry only; this is not a physical food return or payment refund. */
+export async function voidSale(db:D1Database,restaurantId:string,id:string,p:any){
+ const saleId=label(p.saleId),reason=label(p.reason);
+ if(p.notPrepared!=='yes')throw Error('تأیید کن غذا تولید نشده و این فقط اصلاح ثبت اشتباه است.');
+ const record=await db.prepare("SELECT data FROM records WHERE id=? AND restaurant_id=? AND kind='sale'").bind(saleId,restaurantId).first<{data:string}>();
+ if(!record)throw Error('فروش پیدا نشد.');
+ const sale=JSON.parse(record.data);if(sale.voided)return;
+ if(!sale.applied||!Array.isArray(sale.allocations)||sale.allocations.length>25)throw Error('این فروش برای ابطال خودکار قابل بررسی نیست.');
+ const date=new Date().toISOString(),audit={saleId,reason,date,day:day(),applied:false};
+ const checks=sale.allocations.map(()=>"EXISTS(SELECT 1 FROM stock_lots WHERE id=? AND restaurant_id=?)").join(' AND ')||'1';
+ const statements=[db.prepare(`INSERT INTO records(id,restaurant_id,kind,data,created) SELECT ?,?,'sale_void',?,? WHERE EXISTS(SELECT 1 FROM records WHERE id=? AND restaurant_id=? AND kind='sale' AND json_extract(data,'$.applied')=1 AND COALESCE(json_extract(data,'$.voided'),0)=0) AND ${checks} ON CONFLICT(id) DO NOTHING`).bind(id,restaurantId,JSON.stringify(audit),date,saleId,restaurantId,...sale.allocations.flatMap((a:any)=>[a.lotId,restaurantId]))];
+ const gate="EXISTS(SELECT 1 FROM records WHERE id=? AND restaurant_id=? AND kind='sale_void' AND json_extract(data,'$.saleId')=? AND json_extract(data,'$.applied')=0)";
+ for(const a of sale.allocations){if(!Number.isSafeInteger(a.quantity)||a.quantity<=0)throw Error('مقدار تخصیص نامعتبر است.');statements.push(db.prepare(`UPDATE stock_lots SET remaining=remaining+? WHERE id=? AND restaurant_id=? AND ${gate}`).bind(a.quantity,a.lotId,restaurantId,id,restaurantId,saleId))}
+ statements.push(db.prepare(`UPDATE records SET data=json_set(data,'$.voided',json('true'),'$.voidReason',?,'$.voidedAt',?,'$.voidEventId',?) WHERE id=? AND restaurant_id=? AND kind='sale' AND ${gate}`).bind(reason,date,id,saleId,restaurantId,id,restaurantId,saleId));
+ statements.push(db.prepare("UPDATE records SET data=json_set(data,'$.applied',json('true')) WHERE id=? AND restaurant_id=? AND kind='sale_void' AND json_extract(data,'$.saleId')=?").bind(id,restaurantId,saleId));
+ await db.batch(statements);
+ const saved=await db.prepare("SELECT data FROM records WHERE id=? AND restaurant_id=? AND kind='sale'").bind(saleId,restaurantId).first<{data:string}>();
+ if(!saved||!JSON.parse(saved.data).voided)throw Error('ابطال انجام نشد؛ دوباره بررسی کن.');
+}

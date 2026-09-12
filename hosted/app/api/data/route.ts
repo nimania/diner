@@ -1,5 +1,6 @@
 import {env} from "cloudflare:workers";
 import {getChatGPTUser} from "@/app/chatgpt-auth";
+import {quantityUnits,expiryDate} from "@/lib/stock";
 import {materials} from "@/lib/library";
 import {label,money,numeric,recipeCost} from "@/lib/cost";
 export const dynamic="force-dynamic";
@@ -14,7 +15,9 @@ export async function GET(){
  try{const c=await context();if(!c)return json({error:"ابتدا وارد حساب شوید."},401);
  if(!c.restaurant)return json({restaurant:null,records:[]});
  const rows=await c.db.prepare("SELECT id,kind,data,created FROM records WHERE restaurant_id=? ORDER BY created DESC LIMIT 1000").bind(c.restaurant.id).all<{id:string;kind:string;data:string;created:string}>();
- return json({restaurant:c.restaurant,records:rows.results.map(r=>({...r,data:JSON.parse(r.data)}))});
+ const lots=await c.db.prepare("SELECT * FROM stock_lots WHERE restaurant_id=? ORDER BY expires IS NULL,expires,created DESC").bind(c.restaurant.id).all();
+ const moves=await c.db.prepare("SELECT m.*,l.name,l.unit FROM stock_moves m JOIN stock_lots l ON m.lot_id=l.id WHERE m.restaurant_id=? ORDER BY m.created DESC LIMIT 1000").bind(c.restaurant.id).all();
+ return json({lots:lots.results,moves:moves.results,restaurant:c.restaurant,records:rows.results.map(r=>({...r,data:JSON.parse(r.data)}))});
  }catch{return json({error:"دریافت اطلاعات ممکن نشد؛ دوباره تلاش کنید."},503);}
 }
 export async function POST(req:Request){
@@ -31,6 +34,26 @@ export async function POST(req:Request){
   return json({ok:true},201);
  }
  if(!c.restaurant)return json({error:"ابتدا مجموعه را ثبت کنید."},400);
+
+ if(p.kind==="purchase"){
+  const old=await c.db.prepare("SELECT id FROM stock_lots WHERE id=? AND restaurant_id=?").bind(id,c.restaurant.id).first();if(old)return json({ok:true});
+  const material=await c.db.prepare("SELECT data FROM records WHERE id=? AND restaurant_id=? AND kind='ingredient'").bind(label(p.ingredientId),c.restaurant.id).first<{data:string}>();
+  if(!material)return json({error:"ماده را از فهرست مجموعه خودت انتخاب کن."},400);
+  const item=JSON.parse(material.data),pack=numeric(p.packQuantity,0.001,1e7),count=numeric(p.count,1,100000);if(!Number.isInteger(count))throw Error('count');
+  const amount=quantityUnits(pack*count),total=money(p.total),expires=expiryDate(p.expires),supplier=label(p.supplier),place=label(p.location);
+  const snapshot={...item,packQuantity:pack*count,purchasePackQuantity:pack,price:total,source:'خرید: '+supplier,date};
+  await c.db.batch([
+   c.db.prepare("INSERT INTO stock_lots(id,restaurant_id,ingredient_id,name,unit,initial,remaining,total_cost,supplier,expires,location,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(id,c.restaurant.id,p.ingredientId,item.name,item.unit,amount,amount,total,supplier,expires,place,date),
+   c.db.prepare("INSERT INTO records(id,restaurant_id,kind,data,created) VALUES(?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(id,c.restaurant.id,'ingredient',JSON.stringify(snapshot),date)
+  ]);return json({ok:true},201);
+ }
+ if(p.kind==="stock_waste"){
+  const old=await c.db.prepare("SELECT id FROM stock_moves WHERE id=? AND restaurant_id=?").bind(id,c.restaurant.id).first();if(old)return json({ok:true});
+  const lot=await c.db.prepare("SELECT * FROM stock_lots WHERE id=? AND restaurant_id=?").bind(label(p.lotId),c.restaurant.id).first<any>();if(!lot)return json({error:"این نوبت خرید پیدا نشد."},400);
+  const amount=quantityUnits(p.quantity);if(amount>lot.remaining)return json({error:"مقدار دورریز از موجودی این خرید بیشتر است."},400);
+  const cost=Math.round(lot.total_cost*amount/lot.initial);
+  await c.db.prepare("INSERT INTO stock_moves(id,restaurant_id,lot_id,quantity,cost,reason,created) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(id,c.restaurant.id,lot.id,amount,cost,label(p.reason),date).run();return json({ok:true},201);
+ }
  let data:any;
  if(p.kind==="ingredient"){
   if(!["g","ml","piece"].includes(p.unit))throw Error("unit");

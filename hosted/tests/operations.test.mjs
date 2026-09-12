@@ -1,0 +1,41 @@
+import ts from 'typescript';
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync,writeFileSync,mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {pathToFileURL} from 'node:url';
+import assert from 'node:assert/strict';
+const dir=mkdtempSync(join(tmpdir(),'diner-tests-'));
+try{
+for(const name of ['library','cost','operations','demo']){const source=readFileSync(`lib/${name}.ts`,'utf8');writeFileSync(join(dir,name+'.mjs'),ts.transpile(source,{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}).replaceAll("'./cost'","'./cost.mjs'").replaceAll("'./library'","'./library.mjs'").replaceAll("'./operations'","'./operations.mjs'"));}
+const {makeBlend,planConsumption,day,saveSale}=await import(pathToFileURL(join(dir,'operations.mjs')));
+const beef={id:'beef',catalogId:'beef',name:'beef',unit:'g',packQuantity:1000,price:7000000};
+const lamb={id:'lamb',catalogId:'lamb',name:'lamb',unit:'g',packQuantity:1000,price:9500000};
+const mix=makeBlend('mix',[{...beef,percent:70},{...lamb,percent:30}],'mix');
+assert.equal(mix.price,7750000);
+assert.throws(()=>makeBlend('bad',[{...beef,percent:70},{...lamb,percent:20}],'x'));
+assert.throws(()=>makeBlend('bad',[{...beef,percent:50},{...beef,percent:50}],'x'));
+const recipe={name:'burger',servings:1,lines:[{...mix,quantity:150,yield:100}]};
+const lots=[beef,lamb].map(x=>({id:x.id,name:x.name,unit:'g',material:x,initial:1000000,remaining:1000000,total_cost:x.price,expires:day()}));
+const allocation=planConsumption(recipe,2,lots);assert.deepEqual(allocation.map(a=>a.quantity),[210000,90000]);assert.equal(allocation.reduce((s,a)=>s+a.cost,0),2325000);
+assert.throws(()=>planConsumption(recipe,20,lots));
+assert.throws(()=>planConsumption(recipe,1,lots.map(l=>({...l,expires:'2000-01-01'}))));
+assert.equal(planConsumption({...recipe,lines:[{...mix,quantity:150,yield:50}]},1,lots)[0].quantity,210000);
+let saved=false,captured=[];
+const db={prepare(sql){return {bind(...args){return {async first(){if(sql.includes("kind='recipe'"))return {data:JSON.stringify(recipe)};return saved?{id:'s'}:null},async all(){return {results:lots.map(l=>({...l,data:JSON.stringify(l.material)}))}},sql,args}}}},async batch(statements){captured=statements;saved=true}};
+await saveSale(db,'r','s',{recipeId:'recipe',count:2,channel:'اسنپ',unitPrice:230000,discount:10000,commission:40000,delivery:25000,deliveryReceived:10000,pack:16000});
+const sale=JSON.parse(captured[0].args[2]);assert.equal(sale.contribution,1465000);
+writeFileSync('/tmp/diner-sale-statements.json',JSON.stringify(captured));
+const sqlite=new DatabaseSync(':memory:');
+for(const file of ['0000_lyrical_speed_demon.sql','0001_white_queen_noir.sql'])sqlite.exec(readFileSync('drizzle/'+file,'utf8'));
+const realdb={prepare(sql){return {bind(...args){return {sql,args,async first(){return sqlite.prepare(sql).get(...args)||null},async all(){return {results:sqlite.prepare(sql).all(...args)}},async run(){return sqlite.prepare(sql).run(...args)}}}}},async batch(statements){sqlite.exec('BEGIN');try{for(const s of statements)sqlite.prepare(s.sql).run(...s.args);sqlite.exec('COMMIT')}catch(e){sqlite.exec('ROLLBACK');throw e}}};
+const {seedDemo}=await import(pathToFileURL(join(dir,'demo.mjs')));
+await seedDemo(realdb,'owner:demo');const before=sqlite.prepare('SELECT id,remaining FROM stock_lots ORDER BY id').all();await seedDemo(realdb,'owner:demo');assert.deepEqual(sqlite.prepare('SELECT id,remaining FROM stock_lots ORDER BY id').all(),before);
+assert.equal(sqlite.prepare("SELECT count(*) n FROM records WHERE kind='sale'").get().n,3);
+assert.equal(sqlite.prepare("SELECT count(*) n FROM stock_moves").get().n,1);
+assert.equal(sqlite.prepare("SELECT remaining FROM stock_lots WHERE id='demo:owner:demo:lot:veal'").get().remaining,9685000);
+assert.equal(sqlite.prepare("SELECT remaining FROM stock_lots WHERE id='demo:owner:demo:expired-milk'").get().remaining,800000);
+await assert.rejects(()=>saveSale(realdb,'other','foreign',{recipeId:'demo:owner:demo:burger',count:1}));
+console.log('PASS: full demo seed, seeded sales consume raw blend components, repeated seed preserves inventory, expired lots excluded, foreign recipe denied');
+console.log('PASS: blend percentages, weighted cost, raw meat allocation, expiry exclusion, shortage, yield, sales margin');
+}finally{rmSync(dir,{recursive:true,force:true})}

@@ -292,6 +292,13 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "applied": {
+          "name": "applied",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         }
       },
       "indexes": {

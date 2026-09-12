@@ -20,6 +20,7 @@ CREATE TABLE `stock_moves` (
 	`restaurant_id` text NOT NULL,
 	`lot_id` text NOT NULL,
 	`quantity` integer NOT NULL,
+ `applied` integer DEFAULT 0 NOT NULL,
 	`cost` integer NOT NULL,
 	`reason` text NOT NULL,
 	`created` text NOT NULL,
@@ -28,14 +29,3 @@ CREATE TABLE `stock_moves` (
 );
 --> statement-breakpoint
 CREATE INDEX `moves_restaurant` ON `stock_moves` (`restaurant_id`);
---> statement-breakpoint
-CREATE TRIGGER stock_move_guard BEFORE INSERT ON stock_moves
-WHEN NOT EXISTS(SELECT 1 FROM stock_moves WHERE id=NEW.id)
-BEGIN
- SELECT CASE WHEN NEW.quantity<=0 OR NOT EXISTS(SELECT 1 FROM stock_lots WHERE id=NEW.lot_id AND restaurant_id=NEW.restaurant_id AND remaining>=NEW.quantity) THEN RAISE(ABORT,'insufficient_stock') END;
-END;
---> statement-breakpoint
-CREATE TRIGGER stock_move_apply AFTER INSERT ON stock_moves
-BEGIN
- UPDATE stock_lots SET remaining=remaining-NEW.quantity WHERE id=NEW.lot_id AND restaurant_id=NEW.restaurant_id;
-END;

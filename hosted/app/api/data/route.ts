@@ -52,7 +52,13 @@ export async function POST(req:Request){
   const lot=await c.db.prepare("SELECT * FROM stock_lots WHERE id=? AND restaurant_id=?").bind(label(p.lotId),c.restaurant.id).first<any>();if(!lot)return json({error:"این نوبت خرید پیدا نشد."},400);
   const amount=quantityUnits(p.quantity);if(amount>lot.remaining)return json({error:"مقدار دورریز از موجودی این خرید بیشتر است."},400);
   const cost=Math.round(lot.total_cost*amount/lot.initial);
-  await c.db.prepare("INSERT INTO stock_moves(id,restaurant_id,lot_id,quantity,cost,reason,created) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(id,c.restaurant.id,lot.id,amount,cost,label(p.reason),date).run();return json({ok:true},201);
+  await c.db.batch([
+   c.db.prepare("INSERT INTO stock_moves(id,restaurant_id,lot_id,quantity,cost,reason,created) SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM stock_lots WHERE id=? AND restaurant_id=? AND remaining>=?) ON CONFLICT(id) DO NOTHING").bind(id,c.restaurant.id,lot.id,amount,cost,label(p.reason),date,lot.id,c.restaurant.id,amount),
+   c.db.prepare("UPDATE stock_lots SET remaining=remaining-(SELECT quantity FROM stock_moves WHERE id=?) WHERE id=? AND restaurant_id=? AND EXISTS(SELECT 1 FROM stock_moves WHERE id=? AND restaurant_id=? AND lot_id=stock_lots.id AND applied=0)").bind(id,lot.id,c.restaurant.id,id,c.restaurant.id),
+   c.db.prepare("UPDATE stock_moves SET applied=1 WHERE id=? AND restaurant_id=? AND applied=0").bind(id,c.restaurant.id)
+  ]);
+  const saved=await c.db.prepare("SELECT id FROM stock_moves WHERE id=? AND restaurant_id=?").bind(id,c.restaurant.id).first();
+  return saved?json({ok:true},201):json({error:"موجودی تغییر کرده؛ مقدار را دوباره بررسی کن."},400);
  }
  let data:any;
  if(p.kind==="ingredient"){

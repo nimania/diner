@@ -5,3 +5,5 @@ body{font-family:Tahoma,Arial,sans-serif;line-height:1.9}h1{font-size:28px;font-
 .stock-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.stock-card{padding:20px;border:1px solid #d9e5e4;border-radius:12px;background:#f7fbfa}.stock-card>strong{font-size:25px;color:#086768}.expiry-label{font-weight:bold;color:#7a531a}.stock-card button{margin-top:16px}.picture-grid{max-height:520px;overflow:auto;padding:4px}@media(max-width:850px){.stock-grid{grid-template-columns:1fr 1fr}}@media(max-width:550px){.stock-grid{grid-template-columns:1fr}}
 
 .blend-bar{display:flex;border-radius:10px;overflow:hidden;min-height:44px;color:white;text-align:center;margin:14px 0}.blend-bar span{padding:8px}.note{margin-bottom:20px}.stock-card strong{overflow-wrap:anywhere}
+
+.menu-public-link{display:inline-block;background:#a34416;color:white;padding:10px 20px;border-radius:9px}

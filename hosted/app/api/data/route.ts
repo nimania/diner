@@ -41,6 +41,14 @@ export async function POST(req:Request){
  }
  if(!c.restaurant)return json({error:"ابتدا مجموعه را ثبت کنید."},400);
 
+ if(p.kind==='public_menu'){
+  const ids=JSON.parse(p.recipeIds);if(!Array.isArray(ids)||!ids.length||ids.length>30||new Set(ids).size!==ids.length)throw Error('menu items');
+  const items=[];
+  for(const recipeId of ids){const row=await c.db.prepare("SELECT data FROM records WHERE id=? AND restaurant_id=? AND kind='recipe'").bind(label(recipeId),c.restaurant.id).first<{data:string}>();if(!row)throw Error('recipe');const recipe=JSON.parse(row.data);const description=p['description:'+recipeId]||'';if(typeof description!=='string'||description.length>200)throw Error('description');const category=p['category:'+recipeId]||'غذا و نوشیدنی';if(typeof category!=='string'||category.length>60)throw Error('category');items.push({name:recipe.name,price:recipe.sale,description,category})}
+  const description=p.description||'';if(typeof description!=='string'||description.length>300)throw Error('description');
+  const data={version:1,name:label(p.name),description,items};
+  await c.db.prepare("INSERT INTO records(id,restaurant_id,kind,data,created) VALUES(?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(id,c.restaurant.id,'public_menu',JSON.stringify(data),date).run();return json({ok:true},201);
+ }
  if(p.kind==='sale'){try{await saveSale(c.db,c.restaurant.id,id,p);return json({ok:true},201)}catch(e){return json({error:e instanceof Error?e.message:'ثبت فروش ممکن نشد'},400)}}
  if(p.kind==='blend'){
   try{

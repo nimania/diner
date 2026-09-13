@@ -1,3 +1,4 @@
+import {expenseData,reportPeriod,changeExpense} from '@/lib/expenses';
 import {makeBlend,saveSale,voidSale} from '@/lib/operations';
 import {seedDemo} from '@/lib/demo';
 import {env} from "cloudflare:workers";
@@ -16,6 +17,8 @@ async function context(req:Request){
 export async function GET(req:Request){
  try{const c=await context(req);if(!c)return json({error:"ابتدا وارد حساب شوید."},401);
  if(!c.restaurant)return json({restaurant:null,records:[]});
+ const query=new URL(req.url).searchParams;
+ if(query.get('report')==='period'){try{return json(await reportPeriod(c.db,c.restaurant.id,query.get('from'),query.get('to')))}catch(e){return json({error:e instanceof Error?e.message:'گزارش ممکن نشد'},400)}}
  const rows=await c.db.prepare("SELECT id,kind,data,created FROM records WHERE restaurant_id=? ORDER BY created DESC LIMIT 1000").bind(c.restaurant.id).all<{id:string;kind:string;data:string;created:string}>();
  const lots=await c.db.prepare("SELECT * FROM stock_lots WHERE restaurant_id=? ORDER BY expires IS NULL,expires,created DESC").bind(c.restaurant.id).all();
  const moves=await c.db.prepare("SELECT m.*,l.name,l.unit FROM stock_moves m JOIN stock_lots l ON m.lot_id=l.id WHERE m.restaurant_id=? ORDER BY m.created DESC LIMIT 1000").bind(c.restaurant.id).all();
@@ -41,6 +44,9 @@ export async function POST(req:Request){
  }
  if(!c.restaurant)return json({error:"ابتدا مجموعه را ثبت کنید."},400);
 
+ if(['expense','pay_expense','void_expense'].includes(p.kind)){
+  try{if(p.kind==='expense'){const data=expenseData(p);await c.db.prepare("INSERT INTO records(id,restaurant_id,kind,data,created) VALUES(?,?,'expense',?,?) ON CONFLICT(id) DO NOTHING").bind(id,c.restaurant.id,JSON.stringify(data),date).run()}else{await changeExpense(c.db,c.restaurant.id,id,p)}return json({ok:true},201)}catch(e){return json({error:e instanceof Error?e.message:'ثبت هزینه ممکن نشد'},400)}
+ }
  if(p.kind==='public_menu'){
   const ids=JSON.parse(p.recipeIds);if(!Array.isArray(ids)||!ids.length||ids.length>30||new Set(ids).size!==ids.length)throw Error('menu items');
   const items=[];

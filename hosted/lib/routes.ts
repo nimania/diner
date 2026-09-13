@@ -5,6 +5,7 @@ export const sections=[
  {path:'inventory',view:'stock',title:'خرید و انبار'},
  {path:'blends',view:'blends',title:'ترکیب گوشت'},
  {path:'sales',view:'sales',title:'فروش و گزارش روز'},
+ {path:'expenses',view:'expenses',title:'هزینه‌ها و گزارش دوره'},
  {path:'menu',view:'public_menu',title:'منوی آنلاین مشتری'},
  {path:'waste',view:'waste',title:'ضایعات قبلی'},
  {path:'roadmap',view:'next',title:'بخش‌های بعدی'}

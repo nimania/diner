@@ -1,5 +1,7 @@
 # داینر | Diner
 
+[![CI](https://github.com/nimania/diner/actions/workflows/ci.yml/badge.svg)](https://github.com/nimania/diner/actions/workflows/ci.yml)
+
 دستیار فارسی و راست‌به‌چپ برای رستوران‌ها و کافه‌های مستقل: مواد و قیمت، دستور غذا، ترکیب گوشت، خرید و موجودی، دورریز، فروش و گزارش روزانه.
 
 **[شروع از مستندات کامل](documentation/README.md)** · [راهنمای استفاده](documentation/USER_GUIDE.fa.md) · [راهنمای توسعه](documentation/DEVELOPMENT.fa.md) · [نقشه راه](documentation/ROADMAP.fa.md)
@@ -10,7 +12,7 @@
 |---|---|---|
 | [`hosted/`](hosted/) | برنامه آنلاین TypeScript، React، Vinext و D1 | مسیر اصلی توسعه فعلی؛ دسترسی آنلاین محدود به مالک |
 | [`docs/`](docs/) | پیش‌نمایش ایستای نقش‌ها در GitHub Pages | نمایشی؛ پنل مدیر کل در این صفحه به معنای قابلیت عملیاتی نیست |
-| [`app.py`](app.py)، [`diner_core/`](diner_core/)، [`web/`](web/) | نمونه اولیه محلی Python و SQLite | مسیر قدیمی و مستقل؛ قابلیت‌های آنلاین خودکار به آن منتقل نمی‌شوند |
+| [`app.py`](app.py)، [`diner_core/`](diner_core/)`, [`web/`](web/) | نمونه اولیه محلی Python و SQLite | مسیر قدیمی و مستقل؛ قابلیت‌های آنلاین خودکار به آن منتقل نمی‌شوند |
 | [`documentation/`](documentation/) | مستندات عمومی و قابل بازبینی | مرجع وضعیت واقعی نسخه فعلی |
 
 [برنامه آنلاین](https://diner-nima-workspace.iran.chatgpt.site) · [پیش‌نمایش عمومی نقش‌ها](https://nimania.github.io/diner/)

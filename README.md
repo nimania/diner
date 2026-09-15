@@ -1,5 +1,7 @@
 # داینر | Diner
 
+[![CI](https://github.com/nimania/diner/actions/workflows/ci.yml/badge.svg)](https://github.com/nimania/diner/actions/workflows/ci.yml)
+
 دستیار فارسی و راست‌به‌چپ برای رستوران‌ها و کافه‌های مستقل: مواد و قیمت، دستور غذا، ترکیب گوشت، خرید و موجودی، دورریز، فروش و گزارش روزانه.
 
 **[شروع از مستندات کامل](documentation/README.md)** · [راهنمای استفاده](documentation/USER_GUIDE.fa.md) · [راهنمای توسعه](documentation/DEVELOPMENT.fa.md) · [نقشه راه](documentation/ROADMAP.fa.md)
